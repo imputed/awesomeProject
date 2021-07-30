@@ -25,6 +25,7 @@ type NetworkElement interface {
 	GetAddress() string
 	SetExchangeObject(object ExchangeObject, element NetworkElement)
 	SetPublicKey(key rsa.PublicKey, element NetworkElement)
+	InitKeyExchange(element NetworkElement) error
 	keyExchangeI(c NetworkElement, curve ecdh.KeyExchange, key crypto.PublicKey) error
 	keyExchangeIII(c NetworkElement, ciphertext []byte)
 	keyExchangeII(c NetworkElement, exchange ecdh.KeyExchange, key crypto.PublicKey) error
@@ -41,34 +42,40 @@ type Client struct {
 	address         string
 	privateKey      rsa.PrivateKey
 	publicKey       rsa.PublicKey
-	neighbours      []NetworkElement
 	publicKeys      map[NetworkElement]rsa.PublicKey
 	exchangeObjects map[NetworkElement]ExchangeObject
 }
 
-func New(address string) (c *Client, err error)  {
+func New(address string) (c *Client, err error) {
 	c = new(Client)
 	pk, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return nil, fmt.Errorf("error during creation of client at address v%",address)
+		return nil, fmt.Errorf("error during creation of client at address %v", address)
 	}
 	c.privateKey = *pk
 	c.publicKey = pk.PublicKey
 	c.exchangeObjects = map[NetworkElement]ExchangeObject{}
 	c.publicKeys = map[NetworkElement]rsa.PublicKey{}
 	c.address = address
-	log.Printf("client at address v% created",address)
-	return c,nil
+	log.Printf("client at address %v created", address)
+	return c, nil
 }
 
 func (c *Client) Register(element NetworkElement) {
-	c.neighbours = append(c.neighbours, element)
-	log.Printf("neighbour %v added at v%",element.GetAddress(),c.address)
+
+	for networkElement, _ := range c.publicKeys {
+		if networkElement == element {
+			return
+			log.Printf("neighbour %v already added at %v", element.GetAddress(), c.address)
+		}
+	}
+	c.InitKeyExchange(element)
+	log.Printf("neighbour %v added at %v. Initiating key exchange.", element.GetAddress(), c.address)
 }
 
 func (c *Client) GetAddress() string {
+	log.Printf("get address called at %v", c.address)
 	return c.address
-	log.Printf("get address called at v%",c.address)
 }
 
 func (c *Client) SetExchangeObject(object ExchangeObject, element NetworkElement) {
@@ -78,7 +85,6 @@ func (c *Client) SetExchangeObject(object ExchangeObject, element NetworkElement
 func (c *Client) SetPublicKey(key rsa.PublicKey, element NetworkElement) {
 	c.publicKeys[element] = key
 }
-
 
 func (c *Client) Respond(element Message) {
 	digest := sha256.Sum256(element.data)
@@ -91,21 +97,22 @@ func (c *Client) Respond(element Message) {
 	}
 }
 
-func (c *Client) Broadcast() error {
-	data := []byte("Hello, World!")
-
-	digest := sha256.Sum256(data)
-	signature, signErr := rsa.SignPKCS1v15(rand.Reader, &c.privateKey, crypto.SHA256, digest[:])
-	if signErr != nil {
-		return signErr
-	}
-	m := Message{data: data, signature: signature, pubKey: c.privateKey.PublicKey}
-	for i := 0; i < len(c.neighbours); i++ {
-		n := c.neighbours[i]
-		n.Respond(m)
-	}
-	return nil
-}
+//
+//func (c *Client) Broadcast() error {
+//	data := []byte("Hello, World!")
+//
+//	digest := sha256.Sum256(data)
+//	signature, signErr := rsa.SignPKCS1v15(rand.Reader, &c.privateKey, crypto.SHA256, digest[:])
+//	if signErr != nil {
+//		return signErr
+//	}
+//	m := Message{data: data, signature: signature, pubKey: c.privateKey.PublicKey}
+//	for i := 0; i < len(c.publicKeys); i++ {
+//		n := c.neighbours[i]
+//		n.Respond(m)
+//	}
+//	return nil
+//}
 func (c *Client) InitKeyExchange(element NetworkElement) (err error) {
 	curve := ecdh.Generic(elliptic.P256())
 	exchangeObject := ExchangeObject{}
@@ -114,7 +121,7 @@ func (c *Client) InitKeyExchange(element NetworkElement) (err error) {
 		log.Println("failed to generate keys for key exchange")
 		return err
 	}
-	c.SetExchangeObject(exchangeObject,element)
+	c.SetExchangeObject(exchangeObject, element)
 	err = element.keyExchangeI(c, curve, exchangeObject.publicKey)
 	if err != nil {
 		return err
@@ -164,7 +171,7 @@ func (c *Client) keyExchangeIII(element NetworkElement, ciphertext []byte) {
 	if err != nil {
 		panic(err.Error())
 	}
-	c.SetPublicKey(*key,element)
+	c.SetPublicKey(*key, element)
 	log.Printf("%v got public key from %v:\n %v", c.address, element.GetAddress(), key)
 	plaintext := x509.MarshalPKCS1PublicKey(&c.publicKey)
 	ciphertext = cryptoWrapper.EncryptSymmetric(plaintext, c.exchangeObjects[element].secret)
@@ -176,8 +183,7 @@ func (c *Client) keyExchangeIV(element NetworkElement, ciphertext []byte) {
 	if err != nil {
 		panic(err.Error())
 	}
-	c.SetPublicKey(*key,element)
+	c.SetPublicKey(*key, element)
 	log.Printf("%v got public key from %v:\n %v", c.address, element.GetAddress(), key)
 
 }
-

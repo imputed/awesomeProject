@@ -1,17 +1,13 @@
 package main
 
 import (
-	"DHE/Client"
+	client "DHE/Client"
 )
-func main()  {
-c1 := client.New("Address1")
-c2 := client.New("Address2")
 
-c1.Register(c2)
-_= c1.Broadcast()
+func main() {
+	c1, _ := New("Address1")
+	c2, _ := New("Address2")
 
- c1.InitKeyExchange(c2)
-
-
+	c1.Register(c2)
 
 }
