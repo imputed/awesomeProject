@@ -14,12 +14,12 @@ func TestClient_GetAddress(t *testing.T) {
 	c1.Register(c2)
 	c2Added := ""
 	c1Added := ""
-	for value, _ := range c1.publicKeys {
+	for value := range c1.publicKeys {
 		if value.GetAddress() == c2.GetAddress() {
 			c2Added = value.GetAddress()
 		}
 	}
-	for value, _ := range c2.publicKeys {
+	for value := range c2.publicKeys {
 		if value.GetAddress() == c1.GetAddress() {
 			c1Added = value.GetAddress()
 		}
@@ -52,6 +52,37 @@ func TestClient_ExchangePublicKeys(t *testing.T) {
 	if keycompare(keyElement2, c1.publicKey) == false || keycompare(keyElement1, c2.publicKey) == false {
 		t.Errorf("Exchanged public Keys do not match")
 	}
+}
+
+func TestSendMessage(t *testing.T) {
+
+	testMessage := []byte("Das Leben ist eine Freude. Für Manche")
+	c1, _ := New("Address 1")
+	c2, _ := New("Address 2")
+
+	c1.Register(c2)
+
+	c1.Send(testMessage, c2)
+
+	if c2.receivedMessages[0] != string(testMessage) {
+		t.Errorf("An error occured in sending. Send and receive do not match")
+	}
+	if c1.sentMessages[0] != string(testMessage) {
+		t.Errorf("sendMessages receives wrong data")
+	}
+}
+
+func TestRegister(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	m := NewMockNetworkElement(ctrl)
+
+	c1, _ := New("Address 1")
+
+	m.EXPECT().keyExchangeI(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
+	m.EXPECT().GetAddress().Times(1)
+	c1.Register(m)
 }
 
 func TestDoubleRegistering(t *testing.T) {

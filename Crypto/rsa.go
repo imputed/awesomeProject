@@ -1,6 +1,7 @@
 package cryptowrapper
 
 import (
+	"crypto"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -9,6 +10,8 @@ import (
 
 const rsaBitSize = 2048
 
+var sendLabel = make([]byte, 32)
+
 func GenerateKeys() *rsa.PrivateKey {
 	pk, err := rsa.GenerateKey(rand.Reader, rsaBitSize)
 	if err != nil {
@@ -16,7 +19,21 @@ func GenerateKeys() *rsa.PrivateKey {
 	}
 	return pk
 }
+func EncryptAsymmetric(data []byte, publicKey rsa.PublicKey) ([]byte, error) {
+	encrypted, err := rsa.EncryptOAEP(crypto.SHA256.New(), rand.Reader, &publicKey, data, sendLabel)
+	if err != nil {
+		return nil, err
+	}
+	return encrypted, nil
+}
 
+func DecryptAsymetric(message []byte, privateKey rsa.PrivateKey) ([]byte, error) {
+	decrypted, err := rsa.DecryptOAEP(crypto.SHA256.New(), rand.Reader, &privateKey, message, sendLabel)
+	if err != nil {
+		return nil, err
+	}
+	return decrypted, nil
+}
 func EncryptSymmetric(plaintext, secret []byte) (ciphertext []byte) {
 	block, err := aes.NewCipher(secret)
 	if err != nil {

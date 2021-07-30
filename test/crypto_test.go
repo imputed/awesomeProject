@@ -28,7 +28,7 @@ func TestKeyGeneration(t *testing.T) {
 	}
 	log.Println("encrypted bytes: ", encryptedBytes)
 
-	decryptedBytes, err:= pk.Decrypt(nil, encryptedBytes, &rsa.OAEPOptions{Hash: crypto.SHA256})
+	decryptedBytes, err := pk.Decrypt(nil, encryptedBytes, &rsa.OAEPOptions{Hash: crypto.SHA256})
 	if err != nil {
 		t.Fatalf("no decryption possible")
 	}
@@ -39,14 +39,25 @@ func TestKeyGeneration(t *testing.T) {
 	}
 }
 
-func TestEncryption(t *testing.T) {
+func TestSymmetricEncryption(t *testing.T) {
 	teststring := []byte("Test der Encryption und Decryption")
-	bit:=make([]byte,32)
-	enc := cryptowrapper.EncryptSymmetric(teststring,bit)
-	dec:= cryptowrapper.DecryptSymmetric(enc,bit)
+	bit := make([]byte, 32)
+	enc := cryptowrapper.EncryptSymmetric(teststring, bit)
+	dec := cryptowrapper.DecryptSymmetric(enc, bit)
 	if string(teststring) != string(dec) {
 		t.Fatalf("encryption and decryption do not work")
 	}
+}
 
+func TestAsymmetricEncryption(t *testing.T) {
+	testString := []byte("Test der Encryption und Decryption")
+	pk := cryptowrapper.GenerateKeys()
 
+	enc, _ := cryptowrapper.EncryptAsymmetric(testString, pk.PublicKey)
+	dec, _ := cryptowrapper.DecryptAsymetric(enc, *pk)
+	for i := 0; i < len(testString); i++ {
+		if dec[i] != testString[i] {
+			t.Errorf("Assymmetric Encryption not working")
+		}
+	}
 }

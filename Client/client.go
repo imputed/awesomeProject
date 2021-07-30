@@ -13,17 +13,13 @@ import (
 	"log"
 )
 
-type Message struct {
-	pubKey    rsa.PublicKey
-	signature []byte
-	data      []byte
-}
-
 type NetworkElement interface {
 	Register(element NetworkElement)
-	Respond(message Message)
+	Send(message []byte, receiver NetworkElement)
+	Respond([]byte, []byte, NetworkElement)
 	GetAddress() string
 	SetExchangeObject(object ExchangeObject, element NetworkElement)
+	GetPublicKey(element NetworkElement) (rsa.PublicKey, error)
 	SetPublicKey(key rsa.PublicKey, element NetworkElement)
 	InitKeyExchange(element NetworkElement) error
 	keyExchangeI(c NetworkElement, curve ecdh.KeyExchange, key crypto.PublicKey) error
@@ -39,11 +35,13 @@ type ExchangeObject struct {
 }
 
 type Client struct {
-	address         string
-	privateKey      rsa.PrivateKey
-	publicKey       rsa.PublicKey
-	publicKeys      map[NetworkElement]rsa.PublicKey
-	exchangeObjects map[NetworkElement]ExchangeObject
+	address          string
+	privateKey       rsa.PrivateKey
+	publicKey        rsa.PublicKey
+	publicKeys       map[NetworkElement]rsa.PublicKey
+	exchangeObjects  map[NetworkElement]ExchangeObject
+	sentMessages     []string
+	receivedMessages []string
 }
 
 func New(address string) (c *Client, err error) {
@@ -57,6 +55,8 @@ func New(address string) (c *Client, err error) {
 	c.exchangeObjects = map[NetworkElement]ExchangeObject{}
 	c.publicKeys = map[NetworkElement]rsa.PublicKey{}
 	c.address = address
+	c.sentMessages = []string{}
+	c.receivedMessages = []string{}
 	log.Printf("client at address %v created", address)
 	return c, nil
 }
@@ -77,7 +77,12 @@ func (c *Client) GetAddress() string {
 	log.Printf("get address called at %v", c.address)
 	return c.address
 }
-
+func (c *Client) GetPublicKey(element NetworkElement) (rsa.PublicKey, error) {
+	if val, ok := c.publicKeys[element]; ok {
+		return val, nil
+	}
+	return rsa.PublicKey{}, fmt.Errorf("Publickey not present for %v", element.GetAddress())
+}
 func (c *Client) SetExchangeObject(object ExchangeObject, element NetworkElement) {
 	c.exchangeObjects[element] = object
 }
@@ -86,15 +91,44 @@ func (c *Client) SetPublicKey(key rsa.PublicKey, element NetworkElement) {
 	c.publicKeys[element] = key
 }
 
-func (c *Client) Respond(element Message) {
-	digest := sha256.Sum256(element.data)
-	verifyErr := rsa.VerifyPKCS1v15(&element.pubKey, crypto.SHA256, digest[:], element.signature)
+func (c *Client) Respond(encryptedMessage []byte, encryptedSignature []byte, element NetworkElement) {
+
+	decryptedMessage, err := cryptoWrapper.DecryptAsymetric(encryptedMessage, c.privateKey)
+	if err != nil {
+		fmt.Errorf("decryption failed")
+	}
+
+	decryptedSignature, err := cryptoWrapper.DecryptAsymetric(encryptedSignature, c.privateKey)
+	if err != nil {
+		fmt.Errorf("decryption failed")
+	}
+	digest := sha256.Sum256(decryptedMessage)
+	publicKey, _ := c.GetPublicKey(element)
+	verifyErr := rsa.VerifyPKCS1v15(&publicKey, crypto.SHA256, digest[:], decryptedSignature)
 
 	if verifyErr != nil {
-		fmt.Printf("Verification failed: %s", verifyErr)
+		log.Printf("Verification failed: %s  \n", verifyErr)
 	} else {
-		log.Printf("Correct!, %v\n", string(element.data))
+		log.Printf("Verificatio not passed \n")
 	}
+
+	log.Printf("Received from %v: %v\n", element.GetAddress(), string(decryptedMessage))
+	c.receivedMessages = append(c.receivedMessages, string(decryptedMessage))
+
+}
+
+func (c *Client) Send(data []byte, receiver NetworkElement) {
+	digest := sha256.Sum256(data)
+	signature, signErr := rsa.SignPKCS1v15(rand.Reader, &c.privateKey, crypto.SHA256, digest[:])
+	if signErr != nil {
+		fmt.Errorf("message could not be signed, %v", signErr)
+	}
+	pubKey, _ := c.GetPublicKey(receiver)
+	encryptedMessage, _ := cryptoWrapper.EncryptAsymmetric(data, pubKey)
+	encryptedSignature, _ := cryptoWrapper.EncryptAsymmetric(signature, pubKey)
+	c.sentMessages = append(c.sentMessages, string(data))
+	receiver.Respond(encryptedMessage, encryptedSignature, c)
+
 }
 
 //
