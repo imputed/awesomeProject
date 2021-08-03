@@ -72,19 +72,6 @@ func TestSendMessage(t *testing.T) {
 	}
 }
 
-func TestRegister(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	m := NewMockNetworkElement(ctrl)
-
-	c1, _ := New("Address 1")
-
-	m.EXPECT().keyExchangeI(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
-	m.EXPECT().GetAddress().Times(1)
-	c1.Register(m)
-}
-
 func TestDoubleRegistering(t *testing.T) {
 	c2, _ := New("Address 1")
 	c1, _ := New("Address 2")

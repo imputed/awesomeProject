@@ -1,11 +1,13 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="DHE" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="awesomeProject" />
+    <target name="WSL - Ubuntu-20.04" />
     <working_directory value="$PROJECT_DIR$" />
     <kind value="FILE" />
     <package value="DHE" />
     <directory value="$PROJECT_DIR$" />
     <filePath value="$PROJECT_DIR$/main.go" />
+    <option name="build_on_remote_target" value="true" />
     <method v="2" />
   </configuration>
 </component>
