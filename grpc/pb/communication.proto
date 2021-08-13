@@ -1,20 +1,21 @@
 syntax = "proto3";
 
-option go_package ="DHE/communication";
-package helloworld;
+option go_package = "DHE/communication";
+package pb;
 
 // The greeting service definition.
-service Greeter {
-  // Sends a greeting
-  rpc SayHello (HelloRequest) returns (HelloReply) {}
+service Communication {
+  rpc  SendMessage (Message) returns (Message) {}
+  rpc KeyExchangeChat(stream KeyExchangeMessage) returns (stream KeyExchangeMessage) {}
 }
 
-// The request message containing the user's name.
-message HelloRequest {
-  string name = 1;
+message KeyExchangeMessage{
+  int32 id = 1;
+  bytes exchangePublicKey = 2;
+  bytes encryptedPublicKey = 3;
 }
 
-// The response message containing the greetings
-message HelloReply {
-  string message = 1;
+message Message {
+  int32 id = 1;
+  bytes  text = 2;
 }

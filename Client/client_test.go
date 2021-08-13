@@ -3,9 +3,10 @@ package client
 import (
 	"bytes"
 	"crypto/rsa"
-	"github.com/golang/mock/gomock"
 	"log"
 	"testing"
+
+	"github.com/golang/mock/gomock"
 )
 
 func TestClient_GetAddress(t *testing.T) {

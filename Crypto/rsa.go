@@ -1,11 +1,15 @@
 package cryptowrapper
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/rsa"
+	"encoding/gob"
+
+	"github.com/aead/ecdh"
 )
 
 const rsaBitSize = 2048
@@ -64,5 +68,31 @@ func DecryptSymmetric(ciphertext, secret []byte) (plaintext []byte) {
 		panic(err.Error())
 	}
 	return plaintext
+}
 
+func EncodeECDHPoint(point ecdh.Point) []byte {
+	b := bytes.Buffer{}
+	enc := gob.NewEncoder(&b)
+	enc.Encode(point)
+	return b.Bytes()
+}
+
+func DecodeECDHPoint(ecdhPoint []byte, output *ecdh.Point) {
+	b := bytes.NewBuffer(ecdhPoint)
+	dec := gob.NewDecoder(b)
+	dec.Decode(output)
+
+}
+
+func EncodeRSAPublicKey(publicKey rsa.PublicKey) []byte {
+	b := bytes.Buffer{}
+	enc := gob.NewEncoder(&b)
+	enc.Encode(publicKey)
+	return b.Bytes()
+}
+
+func DecodeRSAPublicKey(in []byte, out *rsa.PublicKey) {
+	b := bytes.NewBuffer(in)
+	dec := gob.NewDecoder(b)
+	dec.Decode(out)
 }

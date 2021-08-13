@@ -1,7 +1,7 @@
 package main
 
 import (
-	"DHE/Crypto"
+	cryptowrapper "DHE/Crypto"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
